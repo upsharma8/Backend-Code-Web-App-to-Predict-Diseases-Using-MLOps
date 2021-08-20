@@ -1,0 +1,61 @@
+
+ 
+  - name: Installing docker
+    package:
+      name: docker
+      state: present
+  
+  - name: Start and Enable Docker Service
+    service:
+       name: docker
+       state: started
+       enabled: yes
+  - name: Adding repository for kubernetes
+    yum_repository:
+      name: kubernetes
+      description: RPMforge YUM repo
+      baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-$basearch
+      enabled: yes
+      gpgcheck: yes
+      gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      exclude: kubelet kubeadm kubectl
+
+  - name: Installing kubectl kubeadm and kubelet
+    yum:
+       name:
+         - kubeadm
+         - kubectl
+         - kubelet
+       state: present
+       disable_excludes: kubernetes
+  - name: Enable kubelet
+    shell: "systemctl enable kubelet --now"
+
+
+  - name: Setting the driver for docker by coping daemon.json file
+    copy:
+        src: "daemon.json"
+        dest: "/etc/docker/daemon.json"
+  - name: Restarting the docker services
+    service:
+        name: "docker"
+        state: restarted
+  - name: Installing the iproute-tc
+    package:
+       name: "iproute-tc"
+       state: present
+
+  
+  - name: Pull the images
+    shell: "kubeadm config images pull"
+
+  - name: Initiating the kubeadm
+    command: "kubeadm init --pod-network-cidr=10.240.0.0/16 --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem"
+
+  - name:
+    shell: |
+        mkdir -p $HOME/.kube
+        cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        chown $(id -u):$(id -g) $HOME/.kube/config
+  - name: Install Network Add-on
+    command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml

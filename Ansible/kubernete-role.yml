@@ -1,0 +1,10 @@
+
+- hosts: master
+  roles:
+    - role: "kubernetes-master"
+
+
+- hosts: slave
+  roles:
+    - role: "kubernetes-slave"
+
